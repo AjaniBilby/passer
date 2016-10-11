@@ -25,10 +25,10 @@ class UserSession{
     this.ip = ip.toString();
     this.id = id;
     this.index = sessions.usedIDs.length;
-    this.data = {};
     sessions.usedIDs.push(id);
 
     sessions.ids[id] = this;
+    sessions.ids[id]._cache = {};
     this.timerReset();
 
     sessions.count += 1;
@@ -37,16 +37,12 @@ class UserSession{
   }
 
   get data(){
-    return sessions.ids[this.id].data;
+    return sessions.ids[this.id]._cache || {};
   }
 
   set data(value){
-    if (typeof(newData) != "object"){
-      return false;
-    }else{
-      sessions.ids[this.id].data = object.merg(this.data, newData);
-      return true;
-    }
+    sessions.ids[this.id]._cache = value;
+    return sessions.ids[this.id]._cache;
   }
 }
 
