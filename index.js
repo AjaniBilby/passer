@@ -1,6 +1,7 @@
 var random = require("mass-random");
 var fs = require("fs");
 var object = require("object-manipulation");
+var analytics = null;
 
 
 
@@ -23,6 +24,8 @@ class UserSession{
 
     //Create unique session
     this.ip = ip.toString();
+    this.creation = Date.now();
+    this.lastActive = Date.now();
     this.id = id;
     this.index = sessions.usedIDs.length;
     sessions.usedIDs.push(id);
@@ -47,6 +50,8 @@ class UserSession{
 }
 
 UserSession.prototype.timerReset = function(){
+  this.lastActive = Date.now();
+
   if (sessions.ids[this.id].timer){
     //delete old timer
     clearTimeout(sessions.ids[this.id].timer);
@@ -59,7 +64,8 @@ UserSession.prototype.timerReset = function(){
 };
 
 UserSession.delete = function(){
-  session.usedIDs.splice(this.index)
+  sessions.count -= 1;
+  session.usedIDs.splice(this.index);
 };
 
 
@@ -93,6 +99,7 @@ function IsValidSession(req, res){
   if (typeof(req.cookies.session) == "string"){
     if (typeof(sessions.ids[req.cookies.session]) == "object"){
       req.session = sessions.ids[req.cookies.session];
+      req.session.timerReset(); //Reset due to activity
       return true;
     }
   }
@@ -135,11 +142,143 @@ function pathTester(path, loc){
 }
 
 
+
+function OnRequest(req, res){
+  req.cookies = module.exports.getCookies(req);
+  //get query
+  if (req.url.indexOf("?") != -1){
+    req.query = module.exports.getQueries(req.url.split("?")[1]);
+  }else{
+    req.query = {};
+  }
+
+  //Get extention
+  page = req.url.split("?")[0].toLowerCase();
+  if (page == "/"){
+    page="/index";
+  }
+  req.extention = page.split('/');
+  req.extention = req.extention[req.extention.length-1];
+  if (req.extention.indexOf(".") == -1){
+    req.extention = ".html";
+  }else{
+    req.extention = req.extention.substr(req.extention.indexOf("."));
+  }
+
+  page = "./"+module.exports.publicFolder+page;
+
+  if (req.method == "GET"){
+    var url = req.url.split("?")[0].toLowerCase();
+
+    for (var i=0; i<handlers.list.get.length; i++){
+      if (pathTester(handlers.list.get[i].split("?")[0], url)){
+
+        if (!IsValidSession(req)){
+          res.writeHead(302, {
+            'Location': 'http://'+req.headers.host+req.url,
+            "Set-Cookie": "session="+new UserSession(req.connection.remoteAddress).id+";path=/"
+          });
+          res.end("redirecting");
+          return null;
+        }
+
+        if (handlers.requirements.get[i].fullBody){
+          req.body = '';
+          req.on('data', function (data) {
+            req.body += data;
+          });
+          req.on('end', function () {
+            req.body = module.exports.getQueries(req.body)
+            handlers.functions.get[i](req, res);
+          });
+          return true;
+        }else{
+          handlers.functions.get[i](req, res);
+          return true;
+        }
+      }
+    }
+  }
+
+
+  if (req.method == "POST"){
+    var url = req.url.split("?")[0].toLowerCase();
+
+    for (var i=0; i<handlers.list.post.length; i++){
+      if (pathTester(handlers.list.post[i].split("?")[0], url)){
+        var session = IsValidSession(req);
+
+        if (!session){
+          res.writeHead(302, {
+            'Location': 'http://'+req.headers.host+req.url,
+            "Set-Cookie": "session="+new UserSession(req.connection.remoteAddress).id+";path=/"
+          });
+          res.end("redirecting");
+          return null;
+        }else{
+          //req = session.req;
+        }
+
+        if (handlers.requirements.post[i].fullBody){
+          req.body = '';
+          req.on('data', function (data) {
+            req.body += data;
+          });
+          req.on('end', function () {
+            req.body = module.exports.getQueries(req.body)
+            handlers.functions.post[i](req, res);
+          });
+          return true;
+        }else{
+          handlers.functions.post[i](req, res);
+          return true;
+        }
+      }
+    }
+  }
+
+
+
+
+  //If there is no handler on the path, try and find a associated file
+  if (module.exports.publicFolder !== null){
+    page = page + req.extention;
+    //Does file exist
+    fs.access(page, fs.R_OK | fs.W_OK, function(err){
+      if (err !== null){
+        return false;
+      }else{
+        if (req.extention != "html"){
+          //Make an array of image and video types, then check what type of data you are sending,
+          //and then tell the header what type of data to receive
+          res.writeHead(200, {'Content-Type': module.exports.documentTypes[req.extention] });
+        }else{
+          module.exports.sendHeader(req, res);
+        }
+        //Send file
+        fs.readFile(page, function(err,data){
+          if (err){
+            res.end('<h1>Error</h1>\n'+err);
+          }else{
+            res.end(data);
+          }
+        });
+        return true;
+      }
+    });
+  }
+}
+
+
 module.exports = {
-  sessionFreeZones: [],
   sessionTimeout: 3,
   publicFolder: null,
   headerFile: null,
+  analytics: function(packageData){
+    analytics = packageData;
+
+    analytics.sessions = sessions;
+  },
   documentTypes: {
     "aac": "audio/aac",
     "aifc": "audio/aiff",
@@ -363,127 +502,17 @@ module.exports = {
     return output;
   },
   server: function(req, res){
-    req.cookies = module.exports.getCookies(req);
-    //get query
-    if (req.url.indexOf("?") != -1){
-      req.query = module.exports.getQueries(req.url.split("?")[1]);
-    }else{
-      req.query = {};
-    }
-
-    //Get extention
-    page = req.url.split("?")[0].toLowerCase();
-    if (page == "/"){
-      page="/index";
-    }
-    req.extention = page.split('/');
-    req.extention = req.extention[req.extention.length-1];
-    if (req.extention.indexOf(".") == -1){
-      req.extention = ".html";
-    }else{
-      req.extention = req.extention.substr(req.extention.indexOf("."));
-    }
-
-    page = "./"+module.exports.publicFolder+page;
-
-    if (req.method == "GET"){
-      var url = req.url.split("?")[0].toLowerCase();
-
-      for (var i=0; i<handlers.list.get.length; i++){
-        if (pathTester(handlers.list.get[i].split("?")[0], url)){
-
-          if (!IsValidSession(req)){
-            res.writeHead(302, {
-              'Location': 'http://'+req.headers.host+req.url,
-              "Set-Cookie": "session="+new UserSession(req.connection.remoteAddress).id+";path=/"
-            });
-            res.end("redirecting");
-            return;
-          }
-
-          if (handlers.requirements.get[i].fullBody){
-            req.body = '';
-            req.on('data', function (data) {
-              req.body += data;
-            });
-            req.on('end', function () {
-              req.body = module.exports.getQueries(req.body)
-              handlers.functions.get[i](req, res);
-            });
-            return;
-          }else{
-            handlers.functions.get[i](req, res);
-            return;
-          }
-        }
-      }
-    }
-
-
-    if (req.method == "POST"){
-      var url = req.url.split("?")[0].toLowerCase();
-
-      for (var i=0; i<handlers.list.post.length; i++){
-        if (pathTester(handlers.list.post[i].split("?")[0], url)){
-          var session = IsValidSession(req);
-
-          if (!session){
-            res.writeHead(302, {
-              'Location': 'http://'+req.headers.host+req.url,
-              "Set-Cookie": "session="+new UserSession(req.connection.remoteAddress).id+";path=/"
-            });
-            res.end("redirecting");
-            return;
-          }else{
-            //req = session.req;
-          }
-
-          if (handlers.requirements.post[i].fullBody){
-            req.body = '';
-            req.on('data', function (data) {
-              req.body += data;
-            });
-            req.on('end', function () {
-              req.body = module.exports.getQueries(req.body)
-              handlers.functions.post[i](req, res);
-            });
-            return;
-          }else{
-            handlers.functions.post[i](req, res);
-            return;
-          }
-        }
-      }
-    }
-
-
-
-
-    //If there is no handler on the path, try and find a associated file
-    if (module.exports.publicFolder !== null){
-      //Does file exist
-      fs.access(page, fs.R_OK | fs.W_OK, function(err){
-        if (err !== null){
-          module.exports.on404(req, res);
-          return;
-        }else{
-          if (extention != "html"){
-            //Make an array of image and video types, then check what type of data you are sending, and then tell the header what type of data to receive
-            res.writeHead(200, {'Content-Type': module.exports.documentTypes[extention] });
-          }else{
-            module.exports.sendHeader(req, res);
-          }
-          //Send file
-          fs.readFile(page, function(err,data){
-            if (err){
-              res.end('<h1>Error</h1>\n'+err);
-            }else{
-              res.end(data);
-            }
-          });
-          return;
-        }
-      });
+    var success = OnRequest(req, res);
+    /*
+    NOTE
+      null = restarting connection due to no session ID
+      true = everything worked properly
+      false = error 404
+    */
+    if (success === true && analytics !== null){
+      analytics.activity(req, res);
+    }else if (!success){
+      module.exports.on404(req, res);
     }
   },
   listen: function(port){
