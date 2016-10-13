@@ -1,12 +1,16 @@
 {
   "name": "passer",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "A NodeJS request manager",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
+  "keywords": [
+    "request-manager",
+    "sessions",
+    "form-inputs"
+  ],
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",
   "license": "ISC"

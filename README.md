@@ -86,7 +86,7 @@ of any HTML file request, unlease there is the query key "?noHeader"
       res.end('FIRST TIME!');
     }
 
-    sessionInfo.set(someTagName: "value");
+    sessionInfo.data.someTagName = "value";
   });
 ```
 
@@ -138,4 +138,13 @@ console.log(passer.documentTypes['mp3']); //will log out: audio/mpeg3
 
 
 #Analitics
-In development
+Started development, still in early access.
+Not recommended use
+```
+var passer = require("passer");
+
+var analytics = require('passer-analytics');
+passer.analytics(analytics);
+
+//Then same as normal setup
+```

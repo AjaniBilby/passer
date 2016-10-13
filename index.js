@@ -246,6 +246,7 @@ function OnRequest(req, res){
     //Does file exist
     fs.access(page, fs.R_OK | fs.W_OK, function(err){
       if (err !== null){
+        module.exports.on404(req,res);
         return false;
       }else{
         if (req.extention != "html"){
@@ -259,6 +260,8 @@ function OnRequest(req, res){
         fs.readFile(page, function(err,data){
           if (err){
             res.end('<h1>Error</h1>\n'+err);
+            module.exports.on404(req,res);
+            return false;
           }else{
             res.end(data);
           }
@@ -511,8 +514,6 @@ module.exports = {
     */
     if (success === true && analytics !== null){
       analytics.activity(req, res);
-    }else if (!success){
-      module.exports.on404(req, res);
     }
   },
   listen: function(port){
