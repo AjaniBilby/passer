@@ -137,6 +137,60 @@ console.log(passer.documentTypes['mp3']); //will log out: audio/mpeg3
 
 
 
+#Authentication / Restriction Zones
+##passer.addAuth(restrictedURLs, accessChecker, onDeniedAcess, ignoredURLs)
+Example:
+```
+var passer = require('passer');
+
+passer.listen(8080);
+
+
+//Add a authentication zone
+passer.addAuth(
+  //Zone coverage urls
+  ['/admin*'],
+  //Access check condition
+  function(req){
+    return req.session.data.admin;
+  },
+  //On denied
+  function(req, res){
+    res.end('denied');
+  },
+  //Any zones to be ignored
+  //(for if you use a * to mark out an area you can cancel some)
+  ['/admin/login']
+);
+
+
+
+
+passer.get('/admin/account', function(req, res){
+  res.end('Your in a admin only section');
+});
+
+passer.get('/admin/login', function(req, res){
+  res.end('You are in the admin login screen, of which is open to the public');
+});
+
+passer.post('/admin/login', function(req, res){
+  //If a user on /admin/login submited a form the request would be filtered here
+  //Where you could do some tests and then you can set his session data to
+  //Allow them into the admin section
+
+  if (req.query.password == "please"){
+    req.session.data.admin = true;
+    res.end('You have logged in as an admin');
+  }else{
+    res.end("You don't know the magic word");
+  }
+});
+```
+
+
+
+
 #Analitics
 Started development, still in early access.
 Not recommended use

@@ -79,7 +79,6 @@ var sessions = {
   count: 0,
   usedIDs: []
 };
-
 var handlers = {
   functions: {
     get: [],
@@ -94,17 +93,24 @@ var handlers = {
     post: []
   }
 };
+var authenticators = [];
 
 function IsValidSession(req, res){
-  if (typeof(req.cookies.session) == "string"){
-    if (typeof(sessions.ids[req.cookies.session]) == "object"){
-      req.session = sessions.ids[req.cookies.session];
-      req.session.timerReset(); //Reset due to activity
-      return true;
+  if (!req.sessionChecked){
+    if (typeof(req.cookies.session) == "string"){
+      if (typeof(sessions.ids[req.cookies.session]) == "object"){
+        req.session = sessions.ids[req.cookies.session];
+        req.session.timerReset(); //Reset due to activity
+        req.validSession = true;
+        return true;
+      }
     }
-  }
 
-  return false;
+    req.validSession = false
+    return false;
+  }else{
+    return req.validSession;
+  }
 }
 
 function pathTester(path, location){
@@ -156,6 +162,15 @@ function OnRequest(req, res){
   }
 
   page = "./"+module.exports.publicFolder+page;
+
+
+  var authorized = AuthTest(req, res);
+
+  if (!authorized){
+    return;
+  }
+
+
 
   if (req.method == "GET"){
     var url = req.url.split("?")[0].toLowerCase();
@@ -264,6 +279,38 @@ function OnRequest(req, res){
   }
 }
 
+function AuthTest(req, res){
+  for (let rule of authenticators){
+    //Test if ignoreed directory
+    for (let ignorePath of rule.ignore){
+      if (pathTester(ignorePath, req.url)){
+        return true;
+      }
+    }
+
+    for (let restricted of rule.paths){
+      if (pathTester(restricted, req.url)){
+
+        if (!IsValidSession(req)){ //Get session incase it is needed in validity test
+          res.writeHead(302, {
+            'Location': 'http://'+req.headers.host+req.url,
+            "Set-Cookie": "session="+new UserSession(req.connection.remoteAddress).id+";path=/"
+          });
+          res.end("redirecting");
+          return false;
+        }
+
+        if (!rule.validity(req)){
+          console.log('DENIED');
+          rule.denied(req, res);
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
 
 module.exports = {
   sessionTimeout: 3,
@@ -273,6 +320,23 @@ module.exports = {
     analytics = packageData;
 
     analytics.sessions = sessions;
+  },
+  addAuth: function(paths, validityTestor, denied, ignore){
+    if (paths.length > 0 && typeof(validityTestor) == "function" && typeof(denied) == "function"){
+      authenticators.push({paths: paths, validity: validityTestor, ignore: ignore, denied: denied});
+    }else{
+      //Error
+      if (!paths || paths.length <= 0){
+        console.error("**ERROR: invalid auth path");
+      }
+      if (typeof(validityTestor) != "function"){
+        console.error("**ERROR: invalid auth validityTestor");
+      }
+      if (typeof(denied) != "function"){
+        console.error("**ERROR: invalid auth denied");
+      }
+      return false;
+    }
   },
   documentTypes: {
     "aac": "audio/aac",
