@@ -107,38 +107,28 @@ function IsValidSession(req, res){
   return false;
 }
 
-function pathTester(path, loc){
-  var valid = false;
-  if (path.indexOf("*") != -1){
-    path = path.split("*");
-    var searchPoint = 0;
-    //Loop for each section of the path
-    for (var i=0; i<path.length; i++){
-      //Next if the last section matchs from previous to the end of the location
-      var index;
-      if (i == path.length-1){
-        if (path[i] === ""){
-          break;
-        }
-        index = loc.indexOf(path[i]);
-        valid = (valid && path[i] == loc.slice(index));
-        break;
-      }
+function pathTester(path, location){
+  if (path.indexOf('*') == -1){
+    //If there is no star
+    return path === location;
+  }else{
+    path = path.split('*');
+    var index = -1;
+    for (let part of path){
+      if (part !== ''){
+        var partLoc = location.indexOf(part);
 
-      //Check if the next sections matchs
-      index = loc.indexOf(path[i]);
-      if (index >= searchPoint){
-        searchPoint = index + path[i].length;
-      }else{
-        valid = false;
-        break;
+        if (index < partLoc){
+          index = partLoc;
+        }else{
+          return false;
+        }
       }
     }
-  }else{
-    //If there are no special characters, then test if the strings are EXACTLY the same
-    valid = (path == loc);
+    return true;
   }
-  return valid;
+
+  return false;
 }
 
 
@@ -171,7 +161,8 @@ function OnRequest(req, res){
     var url = req.url.split("?")[0].toLowerCase();
 
     for (var i=0; i<handlers.list.get.length; i++){
-      if (pathTester(handlers.list.get[i].split("?")[0], url)){
+
+      if (pathTester(handlers.list.get[i], url.split("?")[0])){
 
         if (!IsValidSession(req)){
           res.writeHead(302, {
@@ -196,6 +187,8 @@ function OnRequest(req, res){
           handlers.functions.get[i](req, res);
           return true;
         }
+
+        return true;
       }
     }
   }
@@ -206,17 +199,14 @@ function OnRequest(req, res){
 
     for (var i=0; i<handlers.list.post.length; i++){
       if (pathTester(handlers.list.post[i].split("?")[0], url)){
-        var session = IsValidSession(req);
 
-        if (!session){
+        if (!IsValidSession(req)){
           res.writeHead(302, {
             'Location': 'http://'+req.headers.host+req.url,
             "Set-Cookie": "session="+new UserSession(req.connection.remoteAddress).id+";path=/"
           });
           res.end("redirecting");
           return null;
-        }else{
-          //req = session.req;
         }
 
         if (handlers.requirements.post[i].fullBody){
@@ -233,6 +223,8 @@ function OnRequest(req, res){
           handlers.functions.post[i](req, res);
           return true;
         }
+
+        return true;
       }
     }
   }
