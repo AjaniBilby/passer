@@ -7,13 +7,9 @@
     "start": "node index.js"
   },
   "keywords": [
-    "request",
     "request-manager",
     "sessions",
-    "form-inputs",
-    "authentication",
-    "restricted-zones",
-    "restricted-urls"
+    "form-inputs"
   ],
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",
