@@ -250,7 +250,10 @@ App.prototype.onRequest = function(req, res, checkURL){
       Parse file
   --------------------------------------------------------------*/
   if (this.publicFolder !== null){
-    page = this.publicFolder + page + '.' + req.extention;
+    page = this.publicFolder + page;
+    if (page.indexOf('.') === -1){
+      page += '.' + req.extention;
+    }
 
     var sendHeaderFile = false;
 
@@ -271,7 +274,7 @@ App.prototype.onRequest = function(req, res, checkURL){
 App.prototype.parseFile = function(file, req, res, includeHeaderFile){
   //Does the file exist?
   if (fs.existsSync(file)){
-    if (req.extention != 'html'){
+    if (req.extention != 'html' && module.exports.documentTypes[req.extention] !== undefined){
       res.writeHead(200, {'Content-Type': module.exports.documentTypes[req.extention]});
     }else{
       if (includeHeaderFile){
