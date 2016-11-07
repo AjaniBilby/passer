@@ -1,6 +1,6 @@
 {
   "name": "passer",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A NodeJS request manager",
   "main": "index.js",
   "scripts": {
@@ -10,6 +10,10 @@
     "request-manager",
     "sessions",
     "form-inputs"
+  ],
+  "dependencies": [
+    "mass-random",
+    "object-manipulation"
   ],
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",
