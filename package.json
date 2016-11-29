@@ -11,11 +11,11 @@
     "sessions",
     "form-inputs"
   ],
-  "dependencies": [
-    "mass-random",
-    "object-manipulation",
-    "busboy"
-  ],
+  "dependencies": {
+    "mass-random": "^1.1.4",
+    "object-manipulation": "^1.0.6",
+    "busboy": "^0.2.13"
+  },
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",
   "license": "ISC"
