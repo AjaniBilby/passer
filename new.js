@@ -1,9 +1,10 @@
 //TODO make sure that file transfer works
 
-
+const EventEmitter = require('events');
 var random = require('mass-random');
 var fs = require("fs");
 var object = require("object-manipulation");
+var Busboy = require('busboy');
 
 class UserSession{
   constructor(ip, app){
@@ -186,7 +187,6 @@ App.prototype.onRequest = function(req, res, checkURL){
     location = location.substr(0, queryStart);
   }
 
-
   for (let index in this.handlers.list[method]){
     if (PathTester(this.handlers.list[method][index], location)){
       if (!this.IsValidSession(req)){
@@ -195,26 +195,67 @@ App.prototype.onRequest = function(req, res, checkURL){
           'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
         });
         res.end("redirecting");
-        return null;
+        return true;
       }
 
-      if (this.handlers.requirements[method][index].fullBody){
-        var app = this;
-        req.body = '';
-        req.on('data', function(data){
-          req.body += data;
+      req.forms = new EventEmitter();
+      req.body = req.forms;
+
+      var app = this;
+
+      var busboy = new Busboy({ headers: req.headers });
+      busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
+        req.forms[fieldname] = {
+          data: new Buffer(''),
+          filename: filename,
+          encoding: encoding,
+          mimetype: mimetype,
+          stream: file,
+          inprogress: true
+        };
+        file.on('data', function(data) {
+          req.forms[fieldname].data = new Buffer(req.forms[fieldname].data+data);
         });
-        req.on('end', function(){
-          req.body = app.getQueries(req.body);
+        file.on('end', function() {
+          req.forms[fieldname].inprogress = false;
+        });
+
+        req.forms.emit('file', fieldname, req.forms[fieldname]);
+      });
+      busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype){
+        req.forms[fieldname] = val;
+        req.forms.emit('field', fieldname, req.forms[fieldname]);
+      });
+      busboy.on('finish', function(){
+        if (app.handlers.requirements[method][index].fullBody){
           app.handlers.functions[method][index](req, res);
-        });
-        return true;
-      }else{
-        this.handlers.functions[method][index](req, res);
-        return true;
+        }
+
+        req.forms.emit('finish', req.forms);
+      });
+      req.pipe(busboy);
+
+      if (!app.handlers.requirements[method][index].fullBody){
+        app.handlers.functions[method][index](req, res);
       }
+
       return true;
     }
+  }
+
+
+
+
+  /*--------------------------------------------------------------
+      Create Session
+  --------------------------------------------------------------*/
+  if (!this.IsValidSession(req)){
+    res.writeHead(302, {
+      'Location': 'http://'+req.headers.host+location,
+      'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
+    });
+    res.end("redirecting");
+    return true;
   }
 
 
