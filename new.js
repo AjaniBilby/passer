@@ -189,13 +189,16 @@ App.prototype.onRequest = function(req, res, checkURL){
 
   for (let index in this.handlers.list[method]){
     if (PathTester(this.handlers.list[method][index], location)){
-      if (!this.IsValidSession(req)){
-        res.writeHead(302, {
-          'Location': 'http://'+req.headers.host+location,
-          'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
-        });
-        res.end("redirecting");
-        return true;
+
+      if (this.handlers.functions[method][index].toString().indexOf('req.session') != -1){ //Test if task requires sessions
+        if (!(this.handlers.requirements[method][index].noSession || this.noSession) && !this.IsValidSession(req)){
+          res.writeHead(302, {
+            'Location': 'http://'+req.headers.host+location,
+            'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
+          });
+          res.end("redirecting");
+          return true;
+        }
       }
 
       req.forms = new EventEmitter();
@@ -203,40 +206,44 @@ App.prototype.onRequest = function(req, res, checkURL){
 
       var app = this;
 
-      var busboy = new Busboy({ headers: req.headers });
-      busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
-        req.forms[fieldname] = {
-          data: new Buffer(''),
-          filename: filename,
-          encoding: encoding,
-          mimetype: mimetype,
-          stream: file,
-          inprogress: true
-        };
-        file.on('data', function(data) {
-          req.forms[fieldname].data = new Buffer(req.forms[fieldname].data+data);
-        });
-        file.on('end', function() {
-          req.forms[fieldname].inprogress = false;
-        });
+      if (method == 'post'){
+        var busboy = new Busboy({ headers: req.headers });
+        busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
+          req.forms[fieldname] = {
+            data: new Buffer(''),
+            filename: filename,
+            encoding: encoding,
+            mimetype: mimetype,
+            stream: file,
+            inprogress: true
+          };
+          file.on('data', function(data) {
+            req.forms[fieldname].data = new Buffer(req.forms[fieldname].data+data);
+          });
+          file.on('end', function() {
+            req.forms[fieldname].inprogress = false;
+          });
 
-        req.forms.emit('file', fieldname, req.forms[fieldname]);
-      });
-      busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype){
-        req.forms[fieldname] = val;
-        req.forms.emit('field', fieldname, req.forms[fieldname]);
-      });
-      busboy.on('finish', function(){
-        if (app.handlers.requirements[method][index].fullBody){
+          req.forms.emit('file', fieldname, req.forms[fieldname]);
+        });
+        busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype){
+          req.forms[fieldname] = val;
+          req.forms.emit('field', fieldname, req.forms[fieldname]);
+        });
+        busboy.on('finish', function(){
+          if (app.handlers.requirements[method][index].fullBody){
+            app.handlers.functions[method][index](req, res);
+          }
+
+          req.forms.emit('finish', req.forms);
+        });
+        req.pipe(busboy);
+
+        if (!app.handlers.requirements[method][index].fullBody){
           app.handlers.functions[method][index](req, res);
         }
-
-        req.forms.emit('finish', req.forms);
-      });
-      req.pipe(busboy);
-
-      if (!app.handlers.requirements[method][index].fullBody){
-        app.handlers.functions[method][index](req, res);
+      }else{
+        this.handlers.functions[method][index](req, res);
       }
 
       return true;
@@ -249,7 +256,7 @@ App.prototype.onRequest = function(req, res, checkURL){
   /*--------------------------------------------------------------
       Create Session
   --------------------------------------------------------------*/
-  if (!this.IsValidSession(req)){
+  if (!this.noSession && !this.IsValidSession(req)){
     res.writeHead(302, {
       'Location': 'http://'+req.headers.host+location,
       'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
@@ -355,17 +362,18 @@ App.prototype.IsAuthorized = function(req, res){
 
     for (let restricted of rule.paths){
       if (PathTester(restricted, req.url)){
-        if(!this.IsValidSession(req)){ //Get session incase it is needed in validity test
-          res.writeHead(302, {
-            'Location': 'http://'+req.headers.host+req.url,
-            'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
-          });
-          res.end("redirecting");
-          return null;
+        if (rule.validity.toString().indexOf('req.session') != -1){ //Test if task requires sessions
+          if(!this.IsValidSession(req)){ //Get session incase it is needed in validity test
+            res.writeHead(302, {
+              'Location': 'http://'+req.headers.host+req.url,
+              'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
+            });
+            res.end("redirecting");
+            return null;
+          }
         }
 
         if (!rule.validity(req)){
-          console.log('denied');
           rule.denied(req, res);
           return false;
         }
