@@ -104,7 +104,7 @@ App.prototype.IsValidSession = function(req){
 
   if (!req.sessionChecked){
     if (typeof(req.cookies.session) == "string"){
-      if (typeof(this.sessions.ids[req.cookies.session]) == "object"){
+      if (typeof(this.sessions.ids[req.cookies.session]) == "object" && this.sessions.ids[req.cookies.session].ip == req.connection.remoteAddress){
         req.session = this.sessions.ids[req.cookies.session];
         req.session.timerReset(); //Reset due to activity
         req.validSession = true;
@@ -119,6 +119,10 @@ App.prototype.IsValidSession = function(req){
   return false;
 };
 App.prototype.getQueries = function(queryString){
+  if (queryString[0] == '?'){
+    queryString = queryString.substr(1);
+  }
+
   var query = {};
   parts = [];
   if (queryString.indexOf('&') != -1){
@@ -134,6 +138,13 @@ App.prototype.getQueries = function(queryString){
       query[item] = item.splice(1).join('=');
     }else{
       query[item] = true;
+    }
+
+    if (query[item] === 'true'){
+      query[item] = true;
+    }
+    if (query[item] === 'false'){
+      query[item] = false;
     }
   }
 
@@ -171,7 +182,12 @@ App.prototype.onRequest = function(req, res, checkURL){
     /*--------------------------------------------------------------
         Get Querys
     --------------------------------------------------------------*/
-    req.queryString = req.url.split('?').splice(1).join('?');
+    var index = req.url.indexOf('?');
+    if (index != -1){
+      req.queryString = req.url.substr(req.url.indexOf('?'));
+    }else{
+      req.queryString = '';
+    }
     req.query = this.getQueries(req.queryString);
   }
 
@@ -283,7 +299,7 @@ App.prototype.onRequest = function(req, res, checkURL){
       Get extention
   --------------------------------------------------------------*/
   var page = req.url;
-  if (page == '/'){
+  if (page == '/' || page.indexOf('?') == 1){
     page = '/index';
   }
 
@@ -310,14 +326,14 @@ App.prototype.onRequest = function(req, res, checkURL){
       Parse file
   --------------------------------------------------------------*/
   if (this.publicFolder !== null){
-    page = this.publicFolder + page;
     if (page.indexOf('.') === -1){
       page += '.' + req.extention;
     }
+    page = this.publicFolder + page;
 
     var sendHeaderFile = false;
 
-    if (!req.query.noHeader && !req.sentHeaderFile){
+    if (!req.query.noheader && !req.sentHeaderFile){
       req.sentHeaderFile = true;
       sendHeaderFile = true;
     }
@@ -332,21 +348,66 @@ App.prototype.onRequest = function(req, res, checkURL){
   return false;
 };
 App.prototype.parseFile = function(file, req, res, includeHeaderFile){
+
   //Does the file exist?
   if (fs.existsSync(file)){
-    if (req.extention != 'html' && module.exports.documentTypes[req.extention] !== undefined){
-      res.writeHead(200, {'Content-Type': module.exports.documentTypes[req.extention]});
+    if (req.extention != 'html'){
+      if (module.exports.documentTypes[req.extention] !== undefined){
+        res.writeHead(200, {'Content-Type': module.exports.documentTypes[req.extention]});
+      }
     }else{
       if (includeHeaderFile && typeof(this.headerFile) == "string" && fs.existsSync(this.headerFile)){
         fs.readFile(this.headerFile, function(err, header){
+          var missingData = false;
+          header = header.toString();
+          var headerData = header;
+
+          if (header.indexOf('<head>') == -1 || header.indexOf('</head>') == -1){
+            console.error('\nInvalid header file\nMissing <head> tags\n\n' + header + '\n\n');
+            missingData = true;
+          }
+          if (header.indexOf('<body') == -1 || header.indexOf('</body>') == -1){
+            console.error('\nInvalid header file\nMissing <body> tags\n\n' + header + '\n\n'+header.indexOf('<body')+','+header.indexOf('</body>'));
+            missingData = true;
+          }
+          if (missingData){
+            return;
+          }
+
           fs.readFile(file, function(err, main){
+            var missingData = false;
+            main = main.toString();
+
+            if (main.indexOf('<head>') == -1 || main.indexOf('</head>') == -1){
+              console.error('\nInvalid main file \n('+file+')\nMissing <head> tags\n\n' + header + '\n\n');
+              missingData = true;
+            }
+            if (main.indexOf('<body') == -1 || main.indexOf('</body>') == -1){
+              console.error('\nInvalid main file \n('+file+')\nMissing <body> tags\n\n' + header + '\n\n');
+              missingData = true;
+            }
+            if (missingData){
+              return;
+            }
+
+            var header = {
+              head: headerData.substr(headerData.indexOf('<head>'), headerData.indexOf('</head>')),
+              body: headerData.substr(headerData.indexOf('<body'), headerData.indexOf('</body>')),
+            };
+
+            content = main;
+
             //Merg header of header and file
-            var headIndex  = main.indexOf('<head>');
-            var content = main.substr(0, headIndex)+'\n'+main.substr(headIndex)+'\n';
+            var mainHeadIndex  = content.indexOf('<head>');
+            if (typeof(header.head) == "string"){
+              content = content.substr(0, mainHeadIndex)+'\n'+header.head+'\n'+content.substr(mainHeadIndex);
+            }
 
             //Merg body of header and file
-            var bodyIndex  = content.indexOf('<body>');
-            content = content.substr(0, bodyIndex)+'\n'+content.substr(bodyIndex)+'\n';
+            var mainBodyIndex  = content.indexOf('<body>');
+            if (typeof(header.body) == "string"){
+              content = content.substr(0, mainBodyIndex)+'\n'+header.body+'\n'+content.substr(mainBodyIndex);
+            }
 
             res.end(content);
           });
