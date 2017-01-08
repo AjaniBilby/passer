@@ -112,9 +112,11 @@ App.prototype.IsValidSession = function(req){
     }
   }
 
+  var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket.remoteAddress;
+
   if (!req.sessionChecked){
     if (typeof(req.cookies.session) == "string"){
-      if (typeof(this.sessions.ids[req.cookies.session]) == "object" && this.sessions.ids[req.cookies.session].ip == req.connection.remoteAddress){
+      if (typeof(this.sessions.ids[req.cookies.session]) == "object" && this.sessions.ids[req.cookies.session].ip == ip){
         req.session = this.sessions.ids[req.cookies.session];
         req.session.timerReset(); //Reset due to activity
         req.validSession = true;
@@ -251,7 +253,8 @@ App.prototype.onRequest = function(req, res, checkURL){
     if (PathTester(this.handlers.list[method][index], req.location)){
 
       if (!req.sessionLess && !this.IsValidSession(req)){
-        var sid = new UserSession(req.connection.remoteAddress, this).id;
+        var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket.remoteAddress;
+        var sid = new UserSession(ip, this).id;
         res.setHeader('Set-Cookie', "session="+sid+';path=/');
         req.cookies.session = sid;
 
@@ -315,7 +318,8 @@ App.prototype.onRequest = function(req, res, checkURL){
       Create Session
   --------------------------------------------------------------*/
   if (!req.sessionLess && !this.IsValidSession(req)){
-    var sid = new UserSession(req.connection.remoteAddress, this).id;
+    var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket.remoteAddress;
+    var sid = new UserSession(ip, this).id;
     res.setHeader('Set-Cookie', "session="+sid+';path=/');
     req.cookies.session = sid;
 
@@ -468,7 +472,8 @@ App.prototype.IsAuthorized = function(req, res){
       if (PathTester(restricted, req.url)){
         if (rule.validity.toString().indexOf('req.session') != -1){ //Test if task requires sessions
           if(!this.IsValidSession(req)){ //Get session incase it is needed in validity test
-            var sid = new UserSession(req.connection.remoteAddress, this).id;
+            var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket.remoteAddress;
+            var sid = new UserSession(ip, this).id;
             res.setHeader('Set-Cookie', "session="+sid+';path=/');
             req.cookies.session = sid;
 
