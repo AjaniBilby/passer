@@ -1,6 +1,6 @@
 A simple NodeJS server request manager   
 
-##Setup
+## Setup
 ```
 var passer = require("passer");
 
@@ -23,9 +23,9 @@ server.listen(PORT, function(){
 
 
 
-#Request Management
+# Request Management
 
-##On Request Get
+## On Request Get
 ```
   passer.get('/test', function(req, res){
     res.write('HELLO WORLD!!!\n');
@@ -35,7 +35,7 @@ server.listen(PORT, function(){
 ```
 
 
-##On Request Post
+## On Request Post
 ```
   passer.post('/test', function(req, res){
     res.write('HELLO WORLD!!!\n \n');
@@ -44,7 +44,7 @@ server.listen(PORT, function(){
   });
 ```
 
-##Public Files
+## Public Files
 If you set a value for publicFolder then on request if there is no handler mapped
 to that url then it will try and serve a file from set folder before responding with
 error 404
@@ -52,7 +52,7 @@ error 404
   passer.publicFolder = "public";
 ```
 
-##404
+## 404
 This is the default value, but can be changed
 ```
   passer.on404 = function(req, res){
@@ -61,7 +61,7 @@ This is the default value, but can be changed
   }
 ```
 
-##HTML header file
+## HTML header file
 If you defined a header file then it will auto serve that file at the begining
 of any HTML file request, unlease there is the query key "?noHeader"
 ```
@@ -71,9 +71,9 @@ of any HTML file request, unlease there is the query key "?noHeader"
 
 
 
-#Client Data
+# Client Data
 
-##Sessions
+## Sessions
 ```
   passer.sessionTimeout = 1; //1h from last request the session will expire (default = 3h)
 
@@ -89,9 +89,13 @@ of any HTML file request, unlease there is the query key "?noHeader"
     sessionInfo.data.someTagName = "value";
   });
 ```
+### exceptions
+passer.sessionFreeZones is an array of urls that will be ignored for session verification (for if you are connecting devices with no cookie functionality).
+Recommended not to be used unless necessary.
 
 
-##Cookies
+
+## Cookies
 ```
   passer.get('/',function(req,res){
     console.log(req.cookies);
@@ -99,15 +103,30 @@ of any HTML file request, unlease there is the query key "?noHeader"
 ```
 
 
-##Query Items
+## Query Items
 ```
   passer.get('/',function(req,res){
     console.log(req.query);
   });
 ```
 
+## Anchor
+```
+passer.get('/', function(req, res){
+  console.log(req.anchor);
+});
+```
 
-##Form Inputs
+## Location
+This is the url with just a path, no anchors or querystrings
+```
+passer.get('/', function(req, res){
+  console.log(req.location);
+});
+```
+
+
+## Form Inputs
 ```
   passer.get('/FormMethodGet', function(req, res){
     var forms = req.body;
@@ -127,7 +146,21 @@ send the body as well as the request data, thus it may increase load times.
 
 
 
-#Document MimeTypes
+# Authorization
+addAuth(pathsInZone, tester, onFailTest, ignorePaths);
+```
+  passer.addAuth(['*'], function(req){
+    return req.session.loggedIn;
+  }, function(req, res){
+    res.writeHead(401);
+    res.end('Invalid connection');
+  }, ['/login']);
+```
+
+
+
+
+# Document MimeTypes
 Within passer you can use it as a shortcut to be able to get any mime type based
 of a file extention.
 ```
@@ -137,7 +170,7 @@ console.log(passer.documentTypes['mp3']); //will log out: audio/mpeg3
 
 
 
-#Analitics
+# Analitics
 Started development, still in early access.
 Not recommended use
 ```

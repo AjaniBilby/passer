@@ -70,9 +70,9 @@ UserSession.prototype.delete = function(){
 class App{
   constructor(){
     this.isSub = false;
-    this.live = true;
     this.publicFolder = null;
     this.headerFile = null;
+    this.sessionFreeZones = [];
     this.sessions = {
       ids: {},
       keyLength: 20,
@@ -99,7 +99,17 @@ class App{
 }
 App.prototype.IsValidSession = function(req){
   if (this.noSession){
+    req.session = null;
+    req.sessionLess = true;
     return true;
+  }
+
+  for (let item in this.sessionFreeZones){
+    if (PathTester(this.handlers.list[method][index], req.location)){
+      req.session = null;
+      req.sessionLess = true;
+      return true;
+    }
   }
 
   if (!req.sessionChecked){
@@ -113,7 +123,7 @@ App.prototype.IsValidSession = function(req){
       }
     }
   }else{
-    return typeof(req.session) == "object";
+    return typeof(req.session) == "object" && req.session !== null;
   }
 
   return false;
@@ -151,44 +161,75 @@ App.prototype.getQueries = function(queryString){
   return query;
 };
 App.prototype.onRequest = function(req, res, checkURL){
-  if (!this.isSub || !checkURL){
-    /*--------------------------------------------------------------
-        Get Cookies
-    --------------------------------------------------------------*/
-    req.cookies = {};
-    if (req.headers && req.headers.cookie){
-      parts = req.headers.cookie.split(';');
-      for (let item of parts){
-        var sections = item.split('=');
-        if (sections.length < 1){
-          continue;
-        }
-        var name = sections[0];
-        while(name[0] == " "){
-          name = name.slice(1);
-        }
-        sections = sections.splice(1); //Remove name
-        if (sections.length < 1){
-          sections = [true];
-        }
-        req.cookies[name] = sections.join('='); //Merg any other = signs that may be in the cookie
+  /*--------------------------------------------------------------
+      Get Cookies
+  --------------------------------------------------------------*/
+  req.cookies = {};
+  if (req.headers && req.headers.cookie){
+    parts = req.headers.cookie.split(';');
+    for (let item of parts){
+      var sections = item.split('=');
+      if (sections.length < 1){
+        continue;
       }
-
-      //Cleanup
-      delete parts;
+      var name = sections[0];
+      while(name[0] == " "){
+        name = name.slice(1);
+      }
+      sections = sections.splice(1); //Remove name
+      if (sections.length < 1){
+        sections = [true];
+      }
+      req.cookies[name] = sections.join('='); //Merg any other = signs that may be in the cookie
     }
 
+    //Cleanup
+    delete parts;
+  }
 
-    /*--------------------------------------------------------------
-        Get Querys
-    --------------------------------------------------------------*/
-    var index = req.url.indexOf('?');
+
+  /*--------------------------------------------------------------
+      Get Querys
+  --------------------------------------------------------------*/
+  var index = req.url.indexOf('?');
+  if (index != -1){
+    req.queryString = req.url.substr(req.url.indexOf('?'));
+  }else{
+    req.queryString = '';
+  }
+  req.query = this.getQueries(req.queryString);
+
+
+  /*--------------------------------------------------------------
+      Get Anchor
+  --------------------------------------------------------------*/
+  var a = req.url.indexOf('#');
+  if (a != -1){
     if (index != -1){
-      req.queryString = req.url.substr(req.url.indexOf('?'));
+      req.anchor = req.url.substr(a, index);
     }else{
-      req.queryString = '';
+      req.anchor = req.url.substr(a);
     }
-    req.query = this.getQueries(req.queryString);
+  }else{
+    req.anchor = '';
+  }
+
+
+  /*--------------------------------------------------------------
+      Get Raw Path
+  --------------------------------------------------------------*/
+  var method = req.method.toLowerCase();
+  var queryStart = req.location.indexOf('?');
+  var anchorStart = req.location.indexOf('#');
+  var cutoff = -1;
+  if (queryStart == -1 || queryStart < anchorStart){
+    cutoff = anchorStart;
+  }else if (anchorStart == -1 || anchorStart < queryStart){
+    cutoff = queryStart;
+  }
+
+  if (cutoff != -1){
+    req.location = req.url.substr(0, cutoff);
   }
 
 
@@ -205,28 +246,17 @@ App.prototype.onRequest = function(req, res, checkURL){
   /*--------------------------------------------------------------
       Run URL Handles
   --------------------------------------------------------------*/
-  var method = req.method.toLowerCase();
-  var location = req.url;
-  var queryStart = location.indexOf('?');
-  var anchor = location.indexOf('#');
-  if (anchor < queryStart && anchor != -1){
-    location = location.substr(0, anchor);
-  }else if (queryStart != -1){
-    location = location.substr(0, queryStart);
-  }
 
   for (let index in this.handlers.list[method]){
-    if (PathTester(this.handlers.list[method][index], location)){
+    if (PathTester(this.handlers.list[method][index], req.location)){
 
-      if (this.handlers.functions[method][index].toString().indexOf('req.session') != -1){ //Test if task requires sessions
-        if (!(this.handlers.requirements[method][index].noSession || this.noSession) && !this.IsValidSession(req)){
-          res.writeHead(302, {
-            'Location': 'http://'+req.headers.host+location,
-            'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
-          });
-          res.end("redirecting");
-          return true;
-        }
+      if (!req.sessionLess && !this.IsValidSession(req)){
+        var sid = new UserSession(req.connection.remoteAddress, this).id;
+        res.setHeader('Set-Cookie', "session="+sid+';path=/');
+        req.cookies.session = sid;
+
+        //Validate new session
+        this.IsValidSession(req);
       }
 
       req.forms = new EventEmitter();
@@ -284,13 +314,13 @@ App.prototype.onRequest = function(req, res, checkURL){
   /*--------------------------------------------------------------
       Create Session
   --------------------------------------------------------------*/
-  if (!this.noSession && !this.IsValidSession(req)){
-    res.writeHead(302, {
-      'Location': 'http://'+req.headers.host+location,
-      'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
-    });
-    res.end("redirecting");
-    return true;
+  if (!req.sessionLess && !this.IsValidSession(req)){
+    var sid = new UserSession(req.connection.remoteAddress, this).id;
+    res.setHeader('Set-Cookie', "session="+sid+';path=/');
+    req.cookies.session = sid;
+
+    //Validate new session
+    this.IsValidSession(req);
   }
 
 
@@ -298,18 +328,9 @@ App.prototype.onRequest = function(req, res, checkURL){
   /*--------------------------------------------------------------
       Get extention
   --------------------------------------------------------------*/
-  var page = req.url;
+  var page = req.location;
   if (page == '/' || page.indexOf('?') == 1){
     page = '/index';
-  }
-
-
-  var queryStart = page.indexOf('?');
-  var anchorStart = page.indexOf('#');
-  if (anchor < queryStart && anchor != -1){
-    page = page.substr(0, anchor);
-  }else if (queryStart != -1){
-    page = page.substr(0, queryStart);
   }
 
   if (page.indexOf('.') != -1){
@@ -431,7 +452,7 @@ App.prototype.parseFile = function(file, req, res, includeHeaderFile){
 };
 App.prototype.on404 = function(req, res){
   //Error 404
-  res.writeHead(404);
+  res.statusCode = 404;
   res.end("Cannot find "+req.url);
 };
 App.prototype.IsAuthorized = function(req, res){
@@ -447,12 +468,12 @@ App.prototype.IsAuthorized = function(req, res){
       if (PathTester(restricted, req.url)){
         if (rule.validity.toString().indexOf('req.session') != -1){ //Test if task requires sessions
           if(!this.IsValidSession(req)){ //Get session incase it is needed in validity test
-            res.writeHead(302, {
-              'Location': 'http://'+req.headers.host+req.url,
-              'Set-Cookie': "session="+new UserSession(req.connection.remoteAddress, this).id+';path=/'
-            });
-            res.end("redirecting");
-            return null;
+            var sid = new UserSession(req.connection.remoteAddress, this).id;
+            res.setHeader('Set-Cookie', "session="+sid+';path=/');
+            req.cookies.session = sid;
+
+            //Validate new session
+            this.IsValidSession(req);
           }
         }
 
