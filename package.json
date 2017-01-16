@@ -1,6 +1,6 @@
 {
   "name": "passer",
-  "version": "1.2.13",
+  "version": "1.2.14",
   "description": "A NodeJS request manager",
   "main": "index.js",
   "scripts": {
