@@ -280,11 +280,14 @@ App.prototype.onRequest = function(req, res, checkURL){
             filename: filename,
             encoding: encoding,
             mimetype: mimetype,
+            ramStore: false,
             stream: file,
             inprogress: true
           };
           file.on('data', function(data) {
-            req.forms[fieldname].data = new Buffer(req.forms[fieldname].data+data);
+            if (req.forms[fieldname].ramStore){
+              req.forms[fieldname].data = object.appendBuffer(req.forms[fieldname].data, data);
+            }
           });
           file.on('end', function() {
             req.forms[fieldname].inprogress = false;

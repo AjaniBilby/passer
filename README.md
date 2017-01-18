@@ -37,12 +37,32 @@ server.listen(PORT, function(){
 
 ## On Request Post
 ```
-  passer.post('/test', function(req, res){
-    res.write('HELLO WORLD!!!\n \n');
-    res.write('Your Form inputs:'+JSON.stringify(req.body));
-    res.end('END');
+  passer.post('/someURL', function(req, res){
+    console.log(req.forms);
   });
 ```
+
+### Live post
+```
+passer.post('/someURL', function(req,res){
+
+  req.forms.on('field', function(fieldname){
+    console.log('new field data has been received')
+  })
+  req.forms.on('file', function(fieldname){
+    req.forms[fieldname].ramStore = true //This will mean that it will pipe all file data into ram until the post ends and then the file data is dumped
+  });
+
+  req.forms.on('finish', function(){
+    console.log('Received all data');
+
+    //If the file fieldname was called "file" then all of the data saved to ram would be in req.forms.file.data
+  });
+
+}, {fullBody: false}); //post has fullBody set to true by default
+```
+Note: when full body is enabled the server will have to wait for the client to
+send the body as well as the request data, thus it may increase load times.
 
 ## Public Files
 If you set a value for publicFolder then on request if there is no handler mapped
@@ -124,24 +144,6 @@ passer.get('/', function(req, res){
   console.log(req.location);
 });
 ```
-
-
-## Form Inputs
-```
-  passer.get('/FormMethodGet', function(req, res){
-    var forms = req.body;
-
-    console.log(forms);
-  }, {fullBody: true});
-
-  passer.post('/FormMethodGet', function(req, res){
-    var forms = req.body;
-
-    console.log(forms);
-  }); //post has fullBody set to true by default
-```   
-Note: when full body is enabled the server will have to wait for the client to
-send the body as well as the request data, thus it may increase load times.
 
 
 
