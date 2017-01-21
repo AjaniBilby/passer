@@ -97,7 +97,7 @@ class App{
     this.analytics = null;
   }
 }
-App.prototype.IsValidSession = function(req){
+App.prototype.IsValidSession = function(req, res){
   if (this.noSession){
     req.session = null;
     req.sessionLess = true;
@@ -245,7 +245,7 @@ App.prototype.onRequest = function(req, res, checkURL){
       Create / Get Session
   --------------------------------------------------------------*/
   if (!this.noSession){
-    this.IsValidSession(req);
+    this.IsValidSession(req, res);
   }
 
 
@@ -343,6 +343,10 @@ App.prototype.onRequest = function(req, res, checkURL){
       Parse file
   --------------------------------------------------------------*/
   if (this.publicFolder !== null){
+    if (page[page.length-1] == '/'){
+      page += 'index.html';
+    }
+
     if (page.indexOf('.') === -1){
       page += '.' + req.extention;
     }
@@ -489,21 +493,41 @@ App.prototype.addAuth = function(paths, validityTestor, denied, ignore){
     return false;
   }
 };
-App.prototype.listen = function(port = 8000){
+App.prototype.listen = function(port, httpsOptions){
   var app = this;
+  if (typeof(port) != "number"){
+	  port = 8000;
+  }
 
-  var server = require('http').Server(function(req, res){
-    var success = app.onRequest(req, res);
-    /*
-    NOTE
-      null = restarting connection due to no session ID
-      true = everything worked properly
-      false = error 404
-    */
-    if (success === true && app.analytics !== null){
-      app.analytics.activity(req, res);
-    }
-  });
+  var server;
+
+  if (typeof(httpsOptions) == "object"){
+    server = require('https').createServer(httpsOptions, function(req, res){
+      var success = app.onRequest(req, res);
+  		/*
+  		NOTE
+  		null = restarting connection due to no session ID
+  		true = everything worked properly
+  		false = error 404
+  		*/
+  		if (success === true && app.analytics !== null){
+  		  app.analytics.activity(req, res);
+  		}
+    });
+  }else{
+  	server = require('http').Server(function(req, res){
+  		var success = app.onRequest(req, res);
+  		/*
+  		NOTE
+  		null = restarting connection due to no session ID
+  		true = everything worked properly
+  		false = error 404
+  		*/
+  		if (success === true && app.analytics !== null){
+  		  app.analytics.activity(req, res);
+  		}
+  	});
+  }
 
   server.listen(port, function(){
     console.log('Server is listening at port '+port);
