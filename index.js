@@ -13,7 +13,7 @@ class UserSession{
 
     //Check if there is no possible id numbers to use in current set, if so expand set length
     if (app.autoResize && this.appRef.sessions.count+1 >= Math.pow(this.appRef.sessions.keyLength, 30)){
-      console.log("***Error***: ran out of unique id numbers, expanding key length");
+      console.error("***Error***: ran out of unique id numbers, expanding key length");
       this.appRef.sessions.keyLength += 5;
     }
 
@@ -132,6 +132,7 @@ App.prototype.IsValidSession = function(req, res){
   var sid = new UserSession(ip, this, req.cookies.session).id;
   res.setHeader('Set-Cookie', "session="+sid+';path=/');
   req.cookies.session = sid;
+  req.session = this.sessions.ids[sid];
 
   return false;
 };
@@ -167,6 +168,7 @@ App.prototype.getQueries = function(queryString){
 
   return query;
 };
+
 App.prototype.onRequest = function(req, res, checkURL){
   /*--------------------------------------------------------------
       Get Cookies
@@ -273,43 +275,75 @@ App.prototype.onRequest = function(req, res, checkURL){
       var app = this;
 
       if (method == 'post'){
-        var busboy = new Busboy({ headers: req.headers });
-        busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
-          req.forms[fieldname] = {
-            data: new Buffer(''),
-            filename: filename,
-            encoding: encoding,
-            mimetype: mimetype,
-            ramStore: false,
-            stream: file,
-            inprogress: true
-          };
-          file.on('data', function(data) {
-            if (req.forms[fieldname].ramStore){
-              req.forms[fieldname].data = object.appendBuffer(req.forms[fieldname].data, data);
-            }
+        if (req.headers['content-type'] == "application/json"){
+          var body = '';
+          req.on('data', function(chunk){
+            body += chunk;
           });
-          file.on('end', function() {
-            req.forms[fieldname].inprogress = false;
+          req.on('end', function(){
+            try {
+              var json = JSON.parse(body);
+              req.forms.data = json;
+            }catch (e){
+              req.forms.data = null;
+            }
+
+            if (app.handlers.requirements[method][index].fullBody){
+              app.handlers.functions[method][index](req, res);
+            }
+
+            req.forms.emit('finish', req.forms);
           });
 
-          req.forms.emit('file', fieldname, req.forms[fieldname]);
-        });
-        busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype){
-          req.forms[fieldname] = val;
-          req.forms.emit('field', fieldname, req.forms[fieldname]);
-        });
-        busboy.on('finish', function(){
-          if (app.handlers.requirements[method][index].fullBody){
+          if (!app.handlers.requirements[method][index].fullBody){
             app.handlers.functions[method][index](req, res);
           }
+        }else{
+          try{
+            var busboy = new Busboy({ headers: req.headers });
 
-          req.forms.emit('finish', req.forms);
-        });
-        req.pipe(busboy);
+            busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
+              req.forms[fieldname] = {
+                data: new Buffer(''),
+                filename: filename,
+                encoding: encoding,
+                mimetype: mimetype,
+                ramStore: false,
+                stream: file,
+                inprogress: true
+              };
+              file.on('data', function(data) {
+                if (req.forms[fieldname].ramStore){
+                  req.forms[fieldname].data = object.appendBuffer(req.forms[fieldname].data, data);
+                }
+              });
+              file.on('end', function() {
+                req.forms[fieldname].inprogress = false;
+              });
 
-        if (!app.handlers.requirements[method][index].fullBody){
-          app.handlers.functions[method][index](req, res);
+              req.forms.emit('file', fieldname, req.forms[fieldname]);
+            });
+            busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype){
+              req.forms[fieldname] = val;
+              req.forms.emit('field', fieldname, req.forms[fieldname]);
+            });
+            busboy.on('finish', function(){
+              if (app.handlers.requirements[method][index].fullBody){
+                app.handlers.functions[method][index](req, res);
+              }
+
+              req.forms.emit('finish', req.forms);
+            });
+            req.pipe(busboy);
+          }catch (e) {
+            req.forms = {};
+            res.statusCode = 405;
+            res.end('Invalid POST type');
+          }
+
+          if (!app.handlers.requirements[method][index].fullBody){
+            app.handlers.functions[method][index](req, res);
+          }
         }
       }else{
         this.handlers.functions[method][index](req, res);
@@ -370,11 +404,12 @@ App.prototype.onRequest = function(req, res, checkURL){
 };
 App.prototype.parseFile = function(file, req, res, includeHeaderFile){
 
+
   //Does the file exist?
   if (fs.existsSync(file)){
     if (req.extention != 'html'){
       if (module.exports.documentTypes[req.extention] !== undefined){
-        res.writeHead(200, {'Content-Type': module.exports.documentTypes[req.extention]});
+        res.setHeader('Content-Type', module.exports.documentTypes['.'+req.extention]);
       }
     }else{
       if (includeHeaderFile && typeof(this.headerFile) == "string" && fs.existsSync(this.headerFile)){
@@ -438,13 +473,42 @@ App.prototype.parseFile = function(file, req, res, includeHeaderFile){
       }
     }
 
-    var stream = fs.createReadStream(file);
-    stream.on('data', function(chunk){
-      res.write(chunk);
+    res.setHeader('Chunked', 'true');
+
+    fs.stat(file, function(error, stats){
+      var start = undefined;
+      var end = undefined;
+
+      if (req.headers.range){
+        var total = stats.size || 0;
+        var range = req.headers.range;
+        var parts = range.replace(/bytes=/, "").split("-");
+
+        start = parseInt(parts[0], 10);
+        end = parts[1] ? parseInt(parts[1], 10) : total-1;
+        var chunksize = (end-start)+1;
+
+        if (start > end){
+          var c = start;
+          start = end;
+          end = c;
+        }
+
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Length', chunksize);
+      }else{
+        res.setHeader('Content-Length', stats.size || 0);
+      }
+
+
+      var stream = fs.createReadStream(file, {start: start, end: end});
+      stream.pipe(res);
+      req.on('end', stream.close);
+      req.on('close', stream.close);
+      req.on('error', stream.close);
     });
-    stream.on('end', function(chunk){
-      res.end();
-    });
+
     return true;
   }
 
@@ -455,6 +519,7 @@ App.prototype.on404 = function(req, res){
   res.statusCode = 404;
   res.end("Cannot find "+req.url);
 };
+
 App.prototype.IsAuthorized = function(req, res){
 
   for (let rule of this.authenticators){
@@ -493,6 +558,7 @@ App.prototype.addAuth = function(paths, validityTestor, denied, ignore){
     return false;
   }
 };
+
 App.prototype.listen = function(port, httpsOptions){
   var app = this;
   if (typeof(port) != "number"){
@@ -535,24 +601,48 @@ App.prototype.listen = function(port, httpsOptions){
 
   return server;
 };
+
 App.prototype.setAnalytics = function(packageData){
   this.analytics = packageData;
   this.analytics.sessions = sessions;
 };
-App.prototype.get = function(path, callback, options = {fullBody: false}){
+
+App.prototype.handler = function(type, path, callback, options = {fullBody: true}){
+  if (typeof(this.handlers.list[type]) != "object"){
+    this.handlers.list[type] = [];
+  }
+  if (typeof(this.handlers.functions[type]) != "object"){
+    this.handlers.functions[type] = [];
+  }
+  if (typeof(this.handlers.requirements[type]) != "object"){
+    this.handlers.requirements[type] = [];
+  }
+
   path = path.toLowerCase();
-  var index = this.handlers.list.get.length;
-  this.handlers.list.get[index] = path;
-  this.handlers.functions.get[index] = callback;
-  this.handlers.requirements.get[index] = options;
+  var index = this.handlers.list[type].length;
+  this.handlers.list[type][index] = path;
+  this.handlers.functions[type][index] = callback;
+  this.handlers.requirements[type][index] = options;
+};
+App.prototype.get = function(path, callback, options = {fullBody: false}){
+  this.handler('get', path, callback, options);
 };
 App.prototype.post = function(path, callback, options = {fullBody: true}){
-  path = path.toLowerCase();
-  var index = this.handlers.list.post.length;
-  this.handlers.list.post[index] = path;
-  this.handlers.functions.post[index] = callback;
-  this.handlers.requirements.post[index] = options;
+  this.handler('post', path, callback, options);
 };
+App.prototype.put = function(path, callback, options = {fullBody: false}){
+  this.handler('put', path, callback, options);
+};
+App.prototype.delete = function(path, callback, options = {fullBody: true}){
+  this.handler('delete', path, callback, options);
+};
+App.prototype.patch = function(path, callback, options = {fullBody: false}){
+  this.handler('patch', path, callback, options);
+};
+
+
+
+
 
 
 function PathTester(path, location){
