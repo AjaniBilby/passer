@@ -1,10 +1,10 @@
 const EventEmitter = require('events');
 var fs = require('fs');
 
-module.exports = function(stream){
+module.exports = function(stream, boundry){
   var listener = new EventEmitter();
 
-  var id;
+  var id = boundry;
   var first = true;
   var ended = false;
   var forms = {};
