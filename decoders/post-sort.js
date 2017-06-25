@@ -1,6 +1,6 @@
-var sp = require('./standard-post-form.js');
+var sp = require('./standard-post.js');
 var mp = require('./multipart-form.js');
-var js = require('./json.stream.js');
+var js = require('./json-stream.js');
 
 module.exports = function(req, res){
   if (req.headers['content-type'].indexOf('multipart/form-data') === 0){

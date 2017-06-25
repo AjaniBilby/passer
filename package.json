@@ -1,10 +1,10 @@
 {
   "name": "passer",
-  "version": "1.2.17",
+  "version": "2.0.0",
   "description": "A NodeJS request manager",
-  "main": "index.js",
+  "main": "passer.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node passer.js"
   },
   "keywords": [
     "request-manager",
@@ -12,9 +12,7 @@
     "form-inputs"
   ],
   "dependencies": {
-    "mass-random": "^1.1.4",
-    "object-manipulation": "^1.0.6",
-    "busboy": "^0.2.13"
+    "mass-random": "^1.1.4"
   },
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",
