@@ -3,7 +3,7 @@ var http = require('http');
 var fs = require('fs');
 
 var random = require('mass-random');
-var ps = require('./decoders/post-sort.js');
+var sp = require('./decoders/post-sort.js');
 
 var mimeTypes = JSON.parse(fs.readFileSync(__dirname + '/mimeTypes.json'));
 
@@ -227,7 +227,7 @@ class App {
 	}
 	IsAuthorized(req, res) {
 		for (let rule of this.authenticators) {
-			for (let ignorePath of rule.ingore) {
+			for (let ignorePath of rule.ignore) {
 				if (PathTester(ignorePath, req.url)) {
 					return true;
 				}
@@ -264,7 +264,6 @@ class App {
 						fs.readFileSync(file).toString()
 					)
 				);
-				return;
 			} else {
 				res.setHeader('Chuncked', 'true');
 				if (req.extention && mimeTypes[req.extention]) {
@@ -303,10 +302,12 @@ class App {
 					req.on('close', stream.close);
 					req.on('error', stream.close);
 				});
-
-				return true;
 			}
+		}else{
+			return false;
 		}
+
+		return true;
 	}
 	request(req, res) {
 		var anchorIndex;
@@ -351,9 +352,9 @@ class App {
     /*--------------------------------------------------------------
         Get Querys
     --------------------------------------------------------------*/
-		queryIndex = req.url.indexOf('?') + 1;
+		queryIndex = req.url.indexOf('?');
 		if (index != -1) {
-			req.queryString = req.url.substr(queryIndex);
+			req.queryString = req.url.substr(queryIndex+1);
 		} else {
 			req.queryString = '';
 		}
@@ -459,12 +460,16 @@ class App {
 		var id = this.ports.length;
 
 		if (opts){
-			this.ports[id] = https.createServer(opts, appRef.request);
+			this.ports[id] = https.createServer(opts, function(){
+				appRef.request.apply(appRef, arguments);
+			});
 			this.ports[id].listen(port, function(){
-				console.log('HTTPS Listening', port);
+				console.info('HTTPS Listening', port);
 			});
 		}else{
-			this.ports[id] = http.Server(appRef.request);
+			this.ports[id] = http.Server(function(){
+				appRef.request.apply(appRef, arguments);
+			});
 			this.ports[id].listen(port, function () {
 				console.info('Listening', port);
 			});
@@ -505,6 +510,10 @@ function PathTester(path, location){
 			}else if (!wild){
 				return false;
 			}
+		}
+
+		if (path[index] === '*'){
+			index += 1;
 		}
 
 		return index == path.length;

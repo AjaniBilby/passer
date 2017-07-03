@@ -1,5 +1,4 @@
 {
-	//Text
   "css": "text/css",
   "less": "text/css",
   "dlm": "text/dlm",
@@ -39,7 +38,7 @@
   "etx": "text/x-setext",
   "vcf": "text/x-vcard",
 
-	//Image
+
   "gif": "image/gif",
   "ief": "image/ief",
   "jpe": "image/jpeg",
@@ -65,7 +64,7 @@
   "xpm": "image/x-xpixmap",
   "xwd": "image/x-xwindowdump",
 
-	//Audio
+
   "aac": "audio/aac",
   "aifc": "audio/aiff",
   "aiff": "audio/aiff",
@@ -91,7 +90,7 @@
   "smx": "audio/x-smd",
   "smz": "audio/x-smd",
 
-	//Video
+
   "3gp": "video/3gpp",
   "3gpp": "video/3gpp",
   "3g2": "video/3gpp2",
@@ -129,11 +128,11 @@
   "wvx": "video/x-ms-wvx",
   "movie": "video/x-sgi-movie",
 
-	//MSIC
+
   "ics": "text/calendar",
 	"csv": "text/csv",
 
-	//Font
+
   "odf": "font/odf",
   "woff": "font/x-woff"
 }
