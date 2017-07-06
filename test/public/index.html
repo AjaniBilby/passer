@@ -1,0 +1,14 @@
+<html>
+	<head>
+		<title>Test</title>
+		<script>
+			window.addEventListener('unload', function(){
+				navigator.sendBeacon('/log', 'Hello World');
+			})
+		</script>
+	</head>
+	<body>
+		Content
+		<a href="/">Link</a>
+	</body>
+</html>

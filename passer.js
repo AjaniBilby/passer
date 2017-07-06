@@ -373,6 +373,7 @@ class App {
 		} else {
 			req.path = req.url;
 		}
+		req.path = decodeURIComponent(req.path);
 
 
 

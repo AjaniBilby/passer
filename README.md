@@ -1,11 +1,17 @@
-A simple NodeJS server request manager   
+A simple NodeJS server request manager
+[![NPM Version][npm-image]][npm-url]
+[![NPM Downloads][downloads-image]][downloads-url]
+[![Linux Build][travis-image]][travis-url]
+[![Windows Build][appveyor-image]][appveyor-url]
+[![Test Coverage][coveralls-image]][coveralls-url]
+[![Known Vulnerabilities](https://snyk.io/test/npm/passer/badge.svg)](https://snyk.io/test/npm/passer)
 
 ## Setup
 ```
 var passer = require('passer');
 
 var serverToPipeForSockets = passer.listen(8080);
-```   
+```
 
 
 
@@ -20,7 +26,7 @@ Supported Methods:
 - Custom
 
 All bindings allow for wildcard characters for instance;
-Request ```/user/36Ab9z-cat/profilePic``` will activate ```/user/*/profilePic```  
+Request ```/user/36Ab9z-cat/profilePic``` will activate ```/user/*/profilePic```
 ___*___ represents any number of any characters
 Note items binded before others will have higher priority
 
@@ -103,7 +109,7 @@ passer.get('/', function(req, res){
 ```
 
 ### Session Expiry
-The length of time it takes for a session to expire it defined via.  
+The length of time it takes for a session to expire it defined via.
 ```
 passer.sessionExpiry = 3*60*60*1000 //3hrs in ms, this is the default value
 ```
