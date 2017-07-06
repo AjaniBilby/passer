@@ -1,8 +1,7 @@
 A simple NodeJS server request manager
 
-  [![NPM Version][npm-image]][npm-url]
-  [![NPM Downloads][downloads-image]][downloads-url]
-	[![Known Vulnerabilities](https://snyk.io/test/npm/passer/badge.svg)](https://snyk.io/test/npm/passer)
+[NPM stats](https://nodei.co/npm/passer.png)
+[![Known Vulnerabilities](https://snyk.io/test/npm/passer/badge.svg)](https://snyk.io/test/npm/passer)
 
 ## Setup
 ```
