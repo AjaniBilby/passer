@@ -1,6 +1,7 @@
 A simple NodeJS server request manager
 
-[!NPM stats](https://nodei.co/npm/passer.png)
+![NPM stats](https://nodei.co/npm/passer.png)
+
 [![Known Vulnerabilities](https://snyk.io/test/npm/passer/badge.svg)](https://snyk.io/test/npm/passer)
 
 ## Setup
