@@ -1,10 +1,11 @@
 {
   "name": "passer",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "A NodeJS request manager",
   "main": "passer.js",
   "scripts": {
-    "start": "node passer.js"
+    "start": "node passer.js",
+		"test": "node ./test/test.js"
   },
   "keywords": [
     "request-manager",

@@ -26,7 +26,7 @@ Supported Methods:
 All bindings allow for wildcard characters for instance;
 Request ```/user/36Ab9z-cat/profilePic``` will activate ```/user/*/profilePic```
 ___*___ represents any number of any characters
-Note items binded before others will have higher priority
+Note items binded before others will have higher priority. Wildcards can be accessed in ```req.wildcards```.
 
 ## On Request Get
 ```

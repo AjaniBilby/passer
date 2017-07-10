@@ -424,7 +424,8 @@ class App {
 
 		//bind = [method, path, callback, requirements]
 		for (let bind of this.bindings) {
-			if (bind[0] === method && PathTester(bind[1], req.path)) {
+			req.wildcards = PathTester(bind[1], req.path);
+			if (bind[0] === method && req.wildcards) {
 				if (bind[3].form) {
 					sp(req, res);
 				}
@@ -493,31 +494,45 @@ function PathTester(path, location){
 	if (path.indexOf('*') === -1){
 		return path === location;
 	}else{
+		var wildStart = 0;
 		var index = 0;
 		var wild = false;
 		var out = [];
 
-		for (let i=0; i<location.length; i++){
+		for (var i=0; i<location.length; i++){
 			if (path[index] === '*'){
 				wild = true;
+				wildStart = i;
 				index += 1;
 				i--;
 				continue;
 			}
 
 			if (path[index] === location[i]){
+				if (wild){
+					out.push(location.substr(wildStart, i-wildStart));
+				}
+				
 				wild = false;
 				index += 1;
 			}else if (!wild){
-				return false;
+				return null;
 			}
+		}
+		
+		if (wild){
+			out.push(location.substr(wildStart, i-wildStart));
 		}
 
 		if (path[index] === '*'){
 			index += 1;
 		}
 
-		return index == path.length;
+		if (index == path.length){
+			return out;
+		}else{
+			return null;
+		}
 	}
 }
 
