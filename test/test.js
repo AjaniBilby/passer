@@ -1,15 +1,21 @@
 var passer = require('./../passer.js');
 
-// passer.publicFolder = './public/';
-// passer.listen(8080);
+passer.publicFolder = './test/public';
+passer.listen(8080);
 
-// passer.get('*', function(req, res){
-// 	passer.parseFile(req, res, './public/index.html', false);
-// });
-// passer.post('/log', function(req, res){
-// 	console.log('POST LOG');
-// 	console.log(req.body);
-// });
+passer.post('/post', function(req, res){
+	console.log(req.headers['content'], req.form);
+	
+	if (req.form === null){		
+		res.statusCode = 400;
+		res.end();
+		return;
+	}
+	
+	req.form.on('data', function(feildname, info, data){
+		console.log(feildname, info, data);
+	});
+});
 
 // passer.addAuth(['/*'], function(req){
 // 	console.log(req.method, req.url);

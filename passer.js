@@ -3,7 +3,7 @@ var http = require('http');
 var fs = require('fs');
 
 var random = require('mass-random');
-var sp = require('./decoders/post-sort.js');
+var ps = require('./decoders/post-sort.js');
 
 var mimeTypes = JSON.parse(fs.readFileSync(__dirname + '/mimeTypes.json'));
 
@@ -110,7 +110,7 @@ class App {
 	 * @param {any} requerments
 	 * @return {void}
 	*/
-	post(path, callback, requirements) {
+	post(path, callback, requirements = {form: true}) {
 		if (!(requirements instanceof Object)) {
 			requirements = {};
 		}
@@ -128,7 +128,7 @@ class App {
 	 * @param {any} requirements
 	 * @return {void}
 	 */
-	put(path, callback, requirements) {
+	put(path, callback, requirements = {form: true}) {
 		if (!(requirements instanceof Object)) {
 			requirements = {};
 		}
@@ -157,7 +157,7 @@ class App {
 	 * @param {any} requirements
 	 * @return {void}
 	 */
-	patch(path, callback, requirements) {
+	patch(path, callback, requirements = {form: true}) {
 		if (!(requirements instanceof Object)) {
 			requirements = {};
 		}
@@ -253,9 +253,9 @@ class App {
 		this.sessions.count -= 1;
 	}
 
-	parseFile(req, res, file, includeHeader) {
+	parseFile(req, res, file, includeHeader) {				
 		if (fs.existsSync(file)) {
-			if (this.headerFile && req.extention === 'html' && !req.query.noHeader) {
+			if (this.headerFile && includeHeader && req.extention === 'html' && !req.query.noHeader) {
 				res.setHeader('Content-Type', 'text/html');
 
 				res.end(
@@ -353,10 +353,10 @@ class App {
         Get Querys
     --------------------------------------------------------------*/
 		queryIndex = req.url.indexOf('?');
-		if (index != -1) {
-			req.queryString = req.url.substr(queryIndex+1);
-		} else {
+		if (index === -1) {
 			req.queryString = '';
+		} else {
+			req.queryString = req.url.substr(queryIndex+1);
 		}
 
 		req.query = query.parse(req.queryString);
@@ -410,12 +410,12 @@ class App {
         Get Authorization
     --------------------------------------------------------------*/
 		if (!this.IsAuthorized(req, res)) {
-			return;
+			return false;
 		}
 
 
 
-
+		
 
     /*--------------------------------------------------------------
         Run URL Handles
@@ -426,8 +426,9 @@ class App {
 		for (let bind of this.bindings) {
 			req.wildcards = PathTester(bind[1], req.path);
 			if (bind[0] === method && req.wildcards) {
+				
 				if (bind[3].form) {
-					sp(req, res);
+					ps(req, res);
 				}
 
 				bind[2](req, res);
@@ -435,16 +436,14 @@ class App {
 			}
 		}
 
-
-
-		if (this.publicFolder && this.parseFile(req, res, this.publicFolder + page + '.' + req.extention, true)) {
+		if (this.publicFolder && this.parseFile(req, res, this.publicFolder + page + '.' + (req.extention || 'html'), true)) {
 			return true;
 		}
 
 		this.on404(req, res);
 		return false;
 	}
-	on404(req, res) {
+	on404(req, res) {		
 		//Error 404
 		res.statusCode = 404;
 		res.end("Cannot find " + req.url);

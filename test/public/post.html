@@ -1,0 +1,28 @@
+<html>
+	<head>
+		
+	</head>
+	<body>
+		<h2>JSON</h2>
+		<form method="POST" action="/post" enctype="application/json">
+			<textarea name="values"></textarea>
+			<input type="submit">
+		</form>
+		
+		<h2>Standard</h2>
+		<form method="POST" action="/post">
+			<input name="user" type="text">
+			<input name="happyness" type="number">
+			
+			<input type="submit">
+		</form>
+		
+		<h2>Multipart</h2>
+		<form method="POST" action="/post">
+			<input name="user" type="text">
+			<input name="happyness" type="number">
+			
+			<input type="submit">
+		</form>
+	</body>
+</html>

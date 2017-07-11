@@ -3,10 +3,6 @@ const EventEmitter = require('events');
 module.exports = function(stream){
   var listener = new EventEmitter();
 
-  if (typeof(callback) != 'function'){
-    return;
-  }
-
   var body = '';
 
   stream.on('data', function(chunk){
@@ -26,6 +22,8 @@ module.exports = function(stream){
     listener.emit('data', 'data', {name: 'data', json: true}, data);
     listener.emit('finish');
   });
+
+	console.log(listener);
 
   return listener;
 };
