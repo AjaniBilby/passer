@@ -386,9 +386,9 @@ class App {
 		page = page.split('.');
 
 		if (page.length > 1) {
-			req.extention = page.splice(-1, 1)[0];
+			req.extention = page.splice(-1, 1)[0] || null;
 		} else {
-			req.extention = "html";
+			req.extention = null;
 		}
 		page = page.join('.');
 
