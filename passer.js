@@ -388,7 +388,7 @@ class App {
 		if (page.length > 1) {
 			req.extention = page.splice(-1, 1)[0];
 		} else {
-			req.extention = null;
+			req.extention = "html";
 		}
 		page = page.join('.');
 

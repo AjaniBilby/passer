@@ -1,6 +1,6 @@
 {
   "name": "passer",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "A NodeJS request manager",
   "main": "passer.js",
   "scripts": {
@@ -13,7 +13,8 @@
     "form-inputs"
   ],
   "dependencies": {
-    "mass-random": "^1.1.4"
+		"mass-random": "^1.1.4",
+		"cosf": "^1.0.5"
   },
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",

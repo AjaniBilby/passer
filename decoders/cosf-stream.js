@@ -1,4 +1,5 @@
 const EventEmitter = require('events');
+var cosf = require('cosf');
 
 module.exports = function(stream){
 	var listener = new EventEmitter();
@@ -14,7 +15,7 @@ module.exports = function(stream){
     var err = null;
 
     try{
-      data = JSON.parse(body);
+      data = cosf.decode(body);
     }catch(e){
       err = e;
     }
