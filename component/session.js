@@ -107,7 +107,7 @@ Treasury.prototype.create = function(ip){
     id = random.string(this.keyLength);
     exist = false;
 
-    for (let session of sessions){
+    for (let session of this.sessions){
       if (session.id == id){
         exist = true;
         break;
@@ -150,4 +150,4 @@ Treasury.prototype.define = function(id, ip){
 }
 
 
-module.export = Treasury;
+module.exports = Treasury;

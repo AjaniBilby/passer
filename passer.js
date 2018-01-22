@@ -11,8 +11,6 @@ var http = require('http');
 var mimeTypes = JSON.parse(fs.readFileSync(__dirname + '/mimeTypes.json'));
 
 
-
-
 class Binding{
   /**
    * 
@@ -90,16 +88,22 @@ class App{
  * @param {any} opts 
  */
 App.prototype.listen = function(port, opts){
-  let i = this.ports.length;
+  let i = this.port.length;
   let self = this;
 
   if (opts){
-    this.port[i] = https.createServer(opts, ()=>{
-      self.request.apply(self, arguments);
+    this.port[i] = https.createServer(opts, (req, res)=>{
+      self.request(req, res)
+        .catch((e)=>{
+          console.error(e);
+        })
     })
   }else{
-    this.port[i] = http.Server(()=>{
-      self.request.apply(self, arguments);
+    this.port[i] = http.Server((req, res)=>{
+      self.request(req, res)
+        .catch((e)=>{
+          console.error(e);
+        })
     })
   }
 
@@ -146,7 +150,7 @@ App.prototype.request = async function(req, res){
       Get Query
   -----------------------------------------*/
   let queryIndex = req.url.indexOf('?');
-  if (index === -1){
+  if (queryIndex === -1){
     req.queryString = '';
   }else{
     req.queryString = req.url.substr(queryIndex+1);
@@ -214,7 +218,19 @@ App.prototype.request = async function(req, res){
     req.wildcards = bind.match(req.path);
     if (req.wildcards){
       if (bind.form){
-        req.form = await form.decode(req);
+        form.decode(req);
+
+        if (bind.form == 'cache'){
+          req.form.data = {};
+          req.form.on('data', (fieldname, data)=>{
+            req.form.data[fieldname] = data;
+          })
+          req.form.on('end', ()=>{
+            bind.handle(req, res);
+          })
+
+          return true;
+        }
       }
 
       bind.handle(req, res);
@@ -230,14 +246,17 @@ App.prototype.request = async function(req, res){
       Get File
   -----------------------------------------*/
   if (this.publicFolder){
+    let success;
     try{
-      await this.parseFile(req, res, `${this.publicFolder}${page}.`+(req.extension || 'html'));
+      success = await this.parseFile(req, res, `${this.publicFolder}${page}.`+(req.extension || 'html'));
     }catch(e){
-      if (e !== null){
+      if (e != null){
         console.error(e);
       }
     }finally{
-      return true;
+      if (success == true){
+        return true;
+      }
     }
   }
 
@@ -292,7 +311,7 @@ App.prototype.validate = function(req, res){
  * @param {any} res 
  * @param {any} res 
  */
-App.prototype.on404 = function(res, res){
+App.prototype.on404 = function(req, res){
   res.statusCode = 404;
   res.end('Cannot find ' + req.url);
 }
@@ -308,16 +327,17 @@ App.prototype.parseFile = function(req, res, file){
     res.setHeader('Content-Type', mimeType);
   }
 
-  return new Promise((resolve, rejct)=>{
+  return new Promise((resolve, reject)=>{
     fs.exists(file, function(exists){
       if (!exists){
-        throw null;
+        resolve(null);
         return null;
       }
 
       fs.stat(file, (err, stats)=>{
         if (err){
-          throw err;
+          reject(err);
+          return;
         }
         let opts = undefined;
 
@@ -364,6 +384,8 @@ App.prototype.parseFile = function(req, res, file){
  * @param {any} requirements 
  */
 App.prototype.bind = function(method, path, callback, requirements){
+  method = method.toLowerCase();
+
   let bind = new Binding(method, path, callback, requirements);
   this.binding.push(bind);
 
@@ -422,3 +444,9 @@ App.prototype.patch = function(path, callback, requirements = {}){
 
   this.bind('patch', path, callback, requirements);
 }
+
+
+
+
+
+module.exports = new App();
