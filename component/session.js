@@ -141,7 +141,7 @@ Treasury.prototype.updateKey = function(){
  * @param {string} ip 
  */
 Treasury.prototype.define = function(id, ip){
-  let session = this.find(id, ip);
+  let session = id ? this.find(id, ip) : null; //if the id is invalid don't check it
   if (session instanceof Session){
     return session;
   }
