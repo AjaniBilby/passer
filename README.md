@@ -51,7 +51,8 @@ By default **post**, **put**, **patch**, **delete** all have these bindings setu
 
 If a binding is set to cache the form, then all form values will be available within ``req.form.data``, also the binding function will only be triggered after the form has been fully received. Otherwise form activity will be parsed though events.
 
-``req.form.on('data', (fieldName, fieldData)=>{})`` Will be triggered anytime data for the specified field is received. **Note**: Then entire field's data may not be parsed in one call, instead it may be sent via multiple events non-consecutivly.
+``req.form.on('data', (fieldName, fieldData)=>{})`` Will be triggered anytime data for the specified field is received.  
+&nbsp;&nbsp;**Note**: Then entire field's data may not be parsed in one call, instead it may be sent via multiple events non-consecutivly.
 ``req.form.on('end', ()=>{})`` Will be triggered when all form data has been decoded, and parsed though the on ``data`` event.
 
 Built in form encoding types are; **standard url encode**, **multipart**, **json**.
