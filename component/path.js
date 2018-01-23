@@ -25,14 +25,14 @@ function Test(expr, location){
       let found = false;
       let start = j;
       for (j=j; j<location.length; j++){
-        found = location[j] == expr[i];
+        found = expr[i] == '*' || expr[i] == "+" || location[j] == expr[i];
         if (found){
-          groups.push(location.slice(start, j));
-          i++;
+          break;
         }
       }
 
       if (found){
+        groups.push(location.slice(start, j));
         continue;
       }
 
@@ -40,6 +40,7 @@ function Test(expr, location){
 
     }else if (expr[i] == '+'){ //Skip on character
       groups.push(location[j]);
+      i++;
       continue;
     }
 
@@ -50,7 +51,7 @@ function Test(expr, location){
     i++;
   }
 
-  return true;
+  return groups;
 }
 
 /**
