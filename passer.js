@@ -178,7 +178,7 @@ App.prototype.request = async function(req, res){
   /*-----------------------------------------
       Get Extention
   -----------------------------------------*/
-  req.extention = path.extension(req.path);
+  req.extension = path.extension(req.path);
   let page = req.path == '/' ? '/index' : req.path;
 
 
@@ -188,7 +188,9 @@ App.prototype.request = async function(req, res){
   /*-----------------------------------------
       Get Session
   -----------------------------------------*/
-  this.validate(req,res);
+  if (this.hasSessions){
+    this.validate(req,res);
+  }
 
 
 
@@ -223,7 +225,11 @@ App.prototype.request = async function(req, res){
         if (bind.form == 'cache'){
           req.form.data = {};
           req.form.on('data', (fieldname, data)=>{
-            req.form.data[fieldname] = data;
+            if (req.form.data[fieldname]){
+              req.form.data[fieldname] = Buffer.concat([req.form.data[fieldname], data]);
+            }else{
+              req.form.data[fieldname] = data;
+            }
           })
           req.form.on('end', ()=>{
             bind.handle(req, res);
@@ -450,3 +456,4 @@ App.prototype.patch = function(path, callback, requirements = {}){
 
 
 module.exports = new App();
+module.exports.documentTypes = mimeTypes;

@@ -1,167 +1,113 @@
-A simple NodeJS server request manager
+**NodeJS server essentials**
 
-![NPM stats](https://nodei.co/npm/passer.png)
-
+![NPM stats](https://nodei.co/npm/passer.png)  
 [![Known Vulnerabilities](https://snyk.io/test/npm/passer/badge.svg)](https://snyk.io/test/npm/passer)
 
-## Setup
+# Setup
+
+```javascript
+var serv = require('passer');
+serv.listen(8080);
 ```
-var passer = require('passer');
-
-var serverToPipeForSockets = passer.listen(8080);
-```
 
 
 
-# Request Management
-
-Supported Methods:
-- Get
-- Post
-- Put
-- Delete
-- Patch
-- Custom
-
-All bindings allow for wildcard characters for instance;
-Request ```/user/36Ab9z-cat/profilePic``` will activate ```/user/*/profilePic```
-___*___ represents any number of any characters
-Note items binded before others will have higher priority. Wildcards can be accessed in ```req.wildcards```.
-
-## On Request Get
-```
-passer.get('/test', function(req, res){
-  res.write('HELLO WORLD!!!\n');
-  res.write('Session ID:'+req.session.id+'\n');
-  res.end('END');
+# Bindings
+Passer allows for easy url binding
+```javascript
+serv.get('/', (req, res)=>{
+  res.end('Index page live');
 });
 ```
+This can be done for many more request methods than just *get*.
+It can also be done for; **post**, **put**, **patch**, **delete**. As well as the ability to bind to custom methods.
 
-### Request Post
-Currently Supports:
-  - Standard Post (www form urlencoded)
-  - Multipart Form-data
-  - JSON
-```
-passer.post('/someURL', function(req,res){
-  req.form.on('field', function(feildname, info, data){
-    //Received some data for a field
-  });
-  req.forms.on('end', function(){
-    //All data for the field has been received
-  });
-  req.forms.on('finish', function(){
-    //All data for, form has been received
-  });
-});
-```
+&nbsp;&nbsp;&nbsp;**Custom Binding**: ``serv.bind([method], [url], [callback], [requirements]);``
 
-### Custom
-```
-passer.bind(method[String], path[String], callback[Function], requirements[Object])
-```
+## URL
+Parser has a built in wildcard system, so binding urls do not need to exactly match the actual request url.  
+&nbsp;&nbsp;``+`` &nbsp;&nbsp;  Will represent a single wild charater.  
+&nbsp;&nbsp;``*`` &nbsp;&nbsp; Will represent zero to many wild characters.  
+&nbsp;&nbsp;``\\`` &nbsp; Before one of the previouse characters will allow your binding url to include a litteral ``+`` or ``*`` character.  
 
-## Public Files
-If you set a value for publicFolder then on request if there is no handler mapped
-to that url then it will try and serve a file from set folder before responding with
-error 404
-```
-  passer.publicFolder = "public";
-```
-
-## 404
-This is the default value, but can be changed
-```
-passer.on404 = function(req, res){
-  res.statusCode = 404;
-  res.end("Cannot find "+req.url);
-}
-```
-
-## HTML header file
-If you defined a header file then it will auto merge the body, and header of a html file. If query key "?noHeader" is in the request url then it will just serve the html file without the header file.
-```
-passer.headerFile = "./public/header.html";
-```
+The data at each wildcard can also be received. The characters in place of the wild cards will be stored in ``req.wildcards``, in order of which they occur.
 
 
 
+# Request Data
 
-# Client Data
+You can also get specific request data which has already been decoded via a binding.  
+**Cookies:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;``req.cookies``  
+**Query Values:** &nbsp;``req.query``  
+**Plain URL:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;``req.path`` (doesn't include a query string)  
+**Extension:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;``req.extension``
 
-## Sessions
+
+
+# Form data
+Passer has built in form decoders to make use a breeze.
+However these bindings are only set if the binding requirement value ``form`` is set to either ``true`` or ``cache``.  
+By default **post**, **put**, **patch**, **delete** all have these bindings setup. Also **post** has it set to ``cache`` not ``true``.
+
+If a binding is set to cache the form, then all form values will be available within ``req.form.data``, also the binding function will only be triggered after the form has been fully received. Otherwise form activity will be parsed though events.
+
+``req.form.on('data', (fieldName, fieldData)=>{})`` Will be triggered anytime data for the specified field is received. **Note**: Then entire field's data may not be parsed in one call, instead it may be sent via multiple events non-consecutivly.
+``req.form.on('end', ()=>{})`` Will be triggered when all form data has been decoded, and parsed though the on ``data`` event.
+
+Built in form encoding types are; **standard url encode**, **multipart**, **json**.
+
+
+
+# Sessions
+Parse has a built in session system which can be accessed within any binding.  
+All session data tied to a given requester can be accesser via ``req.session.data``.  
+However if you project does not require sessions, and you do not want to waste extra processing power, the session system can be disabled via;
+```javascript
+serv.hasSessions = false;
 ```
-passer.noSession = false; //Default: false
-
-passer.get('/', function(req, res){
-  var sessionInfo = req.session; //User's session data
-
-  if (!sessionInfo.someTagName){ //If defined
-    res.end('You have been here before and had your someTagName set to:'+sessionInfo.someTagName);
-  }else{
-    res.end('FIRST TIME!');
-  }
-
-  sessionInfo.someTagName = "value";
-});
+You can also change the amount of time before a session expires via (in milliseconds);
+```javascript
+serv.treasury.sessionExpiry = 1000 * 60 * 60 * 3; //3h is the default value
 ```
-
-### Session Expiry
-The length of time it takes for a session to expire it defined via.
-```
-passer.sessionExpiry = 3*60*60*1000 //3hrs in ms, this is the default value
-```
-
-### Disable Sessions
-```
-passer.noSession = true;
-```
-
-
-
-## Cookies
-```
-  passer.get('/',function(req,res){
-    console.log(req.cookies);
-  });
-```
-
-
-## Query Items
-```
-  passer.get('/',function(req,res){
-    console.log(req.query);
-  });
-```
-
-## Path
-```
-passer.get('/', function(req, res){
-  console.log('Path no queries: '+req.path);
-  console.log('Path with queries:'+req.url);
-});
-```
-
 
 
 
 # Authorization
-__addAuth(pathsInZone[Array String], tester[function], onFailTest[function], ignorePaths[Array String]);__
-```
-  passer.addAuth(['*'], function(req){
-    return req.session.loggedIn;
-  }, function(req, res){
-    res.writeHead(401);
-    res.end('Invalid connection');
-  }, ['/login']);
+There is a built in system to allow the blocking of certaint urls via a specific rule.  
+This is done via ``serv.addAuth(paths[], testor(), denied(), ignore[])``
+
+**Example**
+```javascript
+serv.addAuth(['/admin/*'], (req)=>{
+  return req.session.data.loggedIn && req.session.data.admin;
+}, (req, res)=>{
+  res.end('You do not have admin permissions');
+}, ['/admin/login'])
 ```
 
+
+
+# File Parsing
+If you set ``serv.publicFolder`` to the path of a folder, then when a request occurs that does not reach a binding, then it will attempt to parse a file from that directory.  
+This functionality can also be manually called from a binding using ``serv.parseFile(req, res, pathToFile)``
+
+
+
+# Uncaught URLs
+By default urls that do not trigger a bind and that don't trigger a file to be parsed will run the ``serv.on404()`` function.  
+This can then be remapped via;
+```javascript
+serv.on404 = (req, res)=>{
+  res.statusCode = 404;
+
+  //Your custom action here
+}
+```
 
 
 
 # Document MimeTypes
-Within passer you can use it as a shortcut to be able to get any mime type based
-of a file extention.
-```
-console.log(passer.documentTypes['mp3']); //will log out: audio/mpeg3
+You can use passers inbuilt mimetype library for your own use via;
+```javascript
+serv.documentTypes['mp3']; //will return 'audio/mpeg3'
 ```

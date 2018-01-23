@@ -1,2 +1,4 @@
 node_modules/
 _old/*
+public/*
+test.js
