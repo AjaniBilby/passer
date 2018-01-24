@@ -11,9 +11,9 @@ function Test(expr, location){
   let i=0;
 
   for (let j=0; j<location.length; j++){
-    if (expr[i] == '\\'){ //Escaping a character
+    if (expr[i] === '\\'){ //Escaping a character
       i++;
-    }else if (expr[i] == '*'){ //Validate wild character
+    }else if (expr[i] === '*'){ //Validate wild character
       i++; //Move over the wildcard character
 
       //If the wildcard is at the end of the expression
@@ -38,7 +38,7 @@ function Test(expr, location){
 
       return false;
 
-    }else if (expr[i] == '+'){ //Skip on character
+    }else if (expr[i] === '+'){ //Skip on character
       groups.push(location[j]);
       i++;
       continue;
@@ -49,6 +49,10 @@ function Test(expr, location){
     }
 
     i++;
+  }
+
+  if (i != expr.length){
+    return false;
   }
 
   return groups;
