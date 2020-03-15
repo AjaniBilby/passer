@@ -31,14 +31,12 @@ class UserSession {
 		app.sessions.usedIds.push(id);
 
 		app.sessions.ids[id] = this;
-		app.sessions.count += 1;
 		this.timerReset();
 
 		return app.sessions.ids[id];
 	}
 
 	timerReset() {
-		var appRef = this;
 		this.lastActive = Date.now();
 
 		if (this.timer) {
@@ -48,11 +46,12 @@ class UserSession {
 
 		this.timer = setTimeout(function (self) {
 			self.delete();
-		}, this.lastActive + this.appRef.sessionExpiry, this);
+		}, this.appRef.sessionExpiry, this);
 	}
 
 	delete() {
 		this.appRef.deleteSession(this.id);
+		app.sessions.count -= 1;
 	}
 }
 
@@ -206,8 +205,8 @@ class App {
 			return req.session !== null;
 		}
 
-		if (req.cookies.session instanceof String) {
-			if (this.sessions.ids[req.cookies.session] instanceof Object && ip === this.sessions.ids[req.cookies.session].ip) {
+		if (typeof(req.cookies.session)) {
+			if (this.sessions.ids[req.cookies.session] instanceof UserSession /*&& ip === this.sessions.ids[req.cookies.session].ip*/) {
 				req.session = this.sessions.ids[req.cookies.session];
 				req.session.timerReset();
 				req.validSession = true;
@@ -249,8 +248,6 @@ class App {
 		var index = this.sessions.usedIds.indexOf(id);
 		this.sessions.usedIds.splice(index, 1);
 		this.sessions.ids[id] = undefined;
-
-		this.sessions.count -= 1;
 	}
 
 	parseFile(req, res, file, includeHeader) {				
@@ -324,7 +321,7 @@ class App {
 
     /*--------------------------------------------------------------
         Get Cookies
-    --------------------------------------------------------------*/
+		--------------------------------------------------------------*/
 		req.cookies = {};
 		if (req.headers && req.headers.cookie) {
 			parts = req.headers.cookie.split(';');
@@ -360,7 +357,6 @@ class App {
 		}
 
 		req.query = query.parse(req.queryString);
-
 
 
 
