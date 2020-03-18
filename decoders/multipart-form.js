@@ -14,7 +14,6 @@ module.exports = function(stream, boundry){
 
       // All of this data is just the previous feild continuing
       if (index == -1) {
-        console.log(22, -1);
         listener.emit('data', lastName, forms[lastName], data);
         return;
       }
@@ -58,9 +57,7 @@ module.exports = function(stream, boundry){
         // Read any extra form meta-data
         for (let i=1; i<meta.length; i++) {
           let item = meta[i].split(': ');
-          console.log(item);
           info[ item[0] ] = item[1];
-          console.log(info);
         }
 
         // Store field metadata
