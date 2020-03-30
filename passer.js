@@ -565,4 +565,3 @@ function MergHTML(header, other) {
 
 module.exports = new App();
 module.exports.app = App;
-module.exports.documentTypes = mimeTypes;
