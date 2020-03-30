@@ -5,7 +5,7 @@
   "main": "passer.js",
   "scripts": {
     "start": "node passer.js",
-		"test": "node ./test/test.js"
+    "test": "node ./test/test.js"
   },
   "keywords": [
     "request-manager",
@@ -13,8 +13,9 @@
     "form-inputs"
   ],
   "dependencies": {
-		"mass-random": "^1.1.4",
-		"cosf": "^1.0.5"
+    "cosf": "^1.0.5",
+    "mass-random": "^1.1.4",
+    "mime-types": "^2.1.26"
   },
   "repository": "https://github.com/Hobgoblin101/passer/",
   "author": "Ajani James Bilby",

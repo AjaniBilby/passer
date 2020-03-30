@@ -5,7 +5,7 @@ var fs = require('fs');
 var random = require('mass-random');
 var ps = require('./decoders/post-sort.js');
 
-var mimeTypes = JSON.parse(fs.readFileSync(__dirname + '/mimeTypes.json'));
+var mime = require('mime-types');
 
 class UserSession {
 	constructor(ip, app, aimId) {
@@ -263,8 +263,9 @@ class App {
 				);
 			} else {
 				res.setHeader('Chuncked', 'true');
-				if (req.extention && mimeTypes[req.extention]) {
-					res.setHeader('Content-Type', mimeTypes[req.extention]);
+				let mimeType = mime.lookup(req.extention);
+				if (mimeType) {
+					res.setHeader('Content-Type', mimeType);
 				}
 
 				fs.stat(file, function (error, stats) {
